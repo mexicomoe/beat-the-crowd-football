@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Beat the Crowd · Football</title>
+<style>
+  /* ============================================================
+     BEAT THE CROWD — FOOTBALL DEMO  (single self-contained file)
+     No backend, no network calls. Runs fully offline after load.
+     ============================================================ */
+  :root{
+    --navy:#0B2545;        /* primary dark text — high contrast */
+    --navy2:#13315C;
+    --bg:#EEF3F9;
+    --card:#FFFFFF;
+    --aqua:#00B2A9;        /* Miami */
+    --aqua-d:#008C85;
+    --orange:#FC4C02;      /* Miami accent */
+    --red:#D50A0A;         /* Tampa Bay */
+    --red-d:#A50000;
+    --pewter:#69625D;
+    --gold:#F2B705;
+    --good:#1B8A3A;
+    --bad:#C0392B;
+    --line:#D7E0EC;
+    --muted:#5A6B82;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--navy);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.4;
+  }
+  body.lock{overflow:hidden;}
+
+  /* App is a full-height flex column; content scrolls, footer stays reachable.
+     dvh avoids the iOS Safari toolbar hiding the action button. */
+  #app{
+    height:100vh;
+    height:100dvh;          /* fixed viewport height so .content scrolls internally */
+    display:flex;
+    flex-direction:column;
+    max-width:520px;
+    margin:0 auto;
+    position:relative;
+    overflow:hidden;
+  }
+  .screen{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .content{
+    flex:1;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:18px 18px 8px;
+  }
+  .footer{
+    padding:12px 18px calc(12px + env(safe-area-inset-bottom));
+    background:linear-gradient(to top, var(--bg) 70%, rgba(238,243,249,0));
+    position:sticky;
+    bottom:0;
+  }
+
+  h1,h2,h3{margin:0 0 10px; color:var(--navy);}
+  h1{font-size:30px; line-height:1.1; letter-spacing:-.5px;}
+  h2{font-size:22px;}
+  h3{font-size:17px;}
+  p{margin:0 0 12px; color:var(--navy2);}
+  .muted{color:var(--muted); font-size:14px;}
+  .center{text-align:center;}
+
+  /* Buttons — min 44px tap targets */
+  button{font-family:inherit;}
+  .btn{
+    display:block; width:100%; border:none; border-radius:14px;
+    padding:16px 18px; font-size:18px; font-weight:700;
+    background:var(--navy); color:#fff; cursor:pointer; min-height:54px;
+    box-shadow:0 4px 14px rgba(11,37,69,.22);
+    transition:transform .05s ease, opacity .15s;
+  }
+  .btn:active{transform:scale(.985);}
+  .btn:disabled{opacity:.4; cursor:not-allowed; box-shadow:none;}
+  .btn.aqua{background:var(--aqua); box-shadow:0 4px 14px rgba(0,178,169,.3);}
+  .btn.orange{background:var(--orange);}
+  .btn.red{background:var(--red);}
+  .btn.ghost{background:#fff; color:var(--navy); border:2px solid var(--line); box-shadow:none;}
+  .btn.sm{padding:11px 14px; font-size:15px; min-height:44px; border-radius:11px;}
+
+  .card{background:var(--card); border-radius:16px; padding:16px; margin-bottom:14px;
+        box-shadow:0 2px 10px rgba(11,37,69,.06); border:1px solid var(--line);}
+
+  /* Brand mark */
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.5px;}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:800;
+        letter-spacing:.4px; text-transform:uppercase;}
+  .pill.mia{background:var(--aqua); color:#03342f;}
+  .pill.tb{background:var(--red); color:#fff;}
+
+  /* Inputs */
+  label{display:block; font-weight:700; margin-bottom:6px; font-size:15px;}
+  input[type=text],input[type=number]{
+    width:100%; padding:14px; font-size:17px; border:2px solid var(--line);
+    border-radius:12px; color:var(--navy); background:#fff; min-height:50px;
+  }
+  input:focus{outline:none; border-color:var(--aqua);}
+
+  /* Choice tiles (winner / captain / wsn) */
+  .choices{display:grid; gap:10px;}
+  .choice{
+    border:2px solid var(--line); background:#fff; border-radius:14px; padding:14px 16px;
+    display:flex; align-items:center; justify-content:space-between; cursor:pointer;
+    font-weight:700; font-size:16px; color:var(--navy); min-height:54px; text-align:left; width:100%;
+  }
+  .choice.sel{border-color:var(--aqua); background:#E9FBFA; box-shadow:0 0 0 3px rgba(0,178,169,.18);}
+  .choice.sel.tbsel{border-color:var(--red); background:#FDECEC; box-shadow:0 0 0 3px rgba(213,10,10,.16);}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+
+  /* Player cards for lineup */
+  .pcard{
+    border:2px solid var(--line); background:#fff; border-radius:13px; padding:11px 13px;
+    display:flex; align-items:center; gap:10px; cursor:pointer; min-height:52px; width:100%; text-align:left;
+  }
+  .pcard.sel{border-color:var(--aqua); background:#E9FBFA;}
+  .pcard.dim{opacity:.45;}
+  .pcard .pname{font-weight:700; font-size:15px; color:var(--navy);}
+  .pcard .pmeta{font-size:12px; color:var(--muted);}
+  .pcard .pavg{margin-left:auto; font-weight:800; font-size:14px; color:var(--navy2); text-align:right;}
+  .teamtag{font-size:11px; font-weight:800; padding:2px 6px; border-radius:6px;}
+  .teamtag.mia{background:#D6F5F3; color:#03342f;}
+  .teamtag.tb{background:#FBDADA; color:#7a0000;}
+  .poshdr{font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+          color:var(--muted); margin:14px 0 8px;}
+  .countbar{position:sticky; top:0; background:var(--bg); padding:8px 0 6px; z-index:2;
+            font-weight:800; font-size:14px; color:var(--navy);}
+
+  /* Scoreboard (match) */
+  .scoreboard{
+    background:linear-gradient(135deg,var(--navy),var(--navy2));
+    color:#fff; border-radius:18px; padding:14px 16px; margin-bottom:14px;
+    box-shadow:0 6px 18px rgba(11,37,69,.25);
+  }
+  .sb-row{display:flex; align-items:center; justify-content:space-between;}
+  .sb-team{display:flex; flex-direction:column; align-items:center; flex:1;}
+  .sb-team .nm{font-size:13px; font-weight:800; letter-spacing:.4px; opacity:.9;}
+  .sb-team .sc{font-size:46px; font-weight:900; line-height:1; margin-top:2px; font-variant-numeric:tabular-nums;}
+  .sb-mid{font-size:12px; text-align:center; padding:0 8px; opacity:.85;}
+  .sb-clock{font-size:13px; font-weight:800; letter-spacing:1px;}
+  .dot-mia{color:var(--aqua);} .dot-tb{color:#ff6b6b;}
+
+  .feed{display:flex; flex-direction:column; gap:8px;}
+  .play{background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 13px; font-size:14px;
+        color:var(--navy2); animation:slidein .35s ease;}
+  .play.score{border-left:5px solid var(--gold); font-weight:600; color:var(--navy);}
+  .play.mia{border-left-color:var(--aqua);}
+  .play.tb{border-left-color:var(--red);}
+  .play .ptag{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--muted);}
+  @keyframes slidein{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+  @keyframes pop{0%{transform:scale(.8);opacity:0;}60%{transform:scale(1.06);}100%{transform:scale(1);opacity:1;}}
+
+  .toast{background:#FFF8E1; border:1px solid var(--gold); border-radius:12px; padding:10px 13px;
+         font-size:14px; font-weight:600; color:#7a5b00; animation:slidein .3s ease;}
+  .toast.good{background:#E7F7EC; border-color:#9bd9af; color:#0d5c27;}
+  .toast.bad{background:#FDECEC; border-color:#f0b3b3; color:#8a1c1c;}
+
+  /* Overlay (mechanics) */
+  .overlay{position:fixed; inset:0; background:rgba(7,20,38,.62); display:flex; align-items:flex-end;
+           justify-content:center; z-index:50; padding:0; }
+  .sheet{background:#fff; width:100%; max-width:520px; border-radius:22px 22px 0 0; padding:20px 18px;
+         padding-bottom:calc(20px + env(safe-area-inset-bottom)); max-height:92vh; max-height:92dvh;
+         overflow-y:auto; -webkit-overflow-scrolling:touch; animation:sheetup .28s ease;
+         box-shadow:0 -8px 30px rgba(0,0,0,.3);}
+  @keyframes sheetup{from{transform:translateY(100%);} to{transform:none;}}
+  .sheet h2{display:flex; align-items:center; gap:8px;}
+  .countdown{font-weight:900; font-size:15px; color:var(--orange);}
+  .ring{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+        border-radius:50%; background:#FFF1E8; color:var(--orange); font-weight:900; font-size:13px;}
+
+  /* Leaderboard */
+  .lb-row{display:flex; align-items:center; gap:10px; padding:11px 13px; border-radius:12px; margin-bottom:6px;
+          background:#fff; border:1px solid var(--line);}
+  .lb-row.me{background:linear-gradient(90deg,#E9FBFA,#fff); border-color:var(--aqua); box-shadow:0 0 0 2px rgba(0,178,169,.25);}
+  .lb-rank{font-weight:900; width:30px; color:var(--muted); font-size:15px;}
+  .lb-name{font-weight:700; font-size:15px; flex:1;}
+  .lb-name .you{font-size:11px; font-weight:800; color:var(--aqua-d); display:block;}
+  .lb-pts{font-weight:900; font-size:17px; font-variant-numeric:tabular-nums;}
+  .lb-row.top1 .lb-rank{color:var(--gold);}
+
+  .recap-line{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:15px;}
+  .recap-line:last-child{border-bottom:none;}
+  .recap-line .rv{font-weight:800; font-variant-numeric:tabular-nums;}
+  .rv.pos{color:var(--good);} .rv.neg{color:var(--bad);}
+  .recap-total{display:flex; justify-content:space-between; padding:12px 0 0; font-size:20px; font-weight:900;}
+
+  .step-dots{display:flex; gap:6px; justify-content:center; margin-bottom:14px;}
+  .step-dots i{width:8px; height:8px; border-radius:50%; background:var(--line); display:block;}
+  .step-dots i.on{background:var(--aqua);}
+  .vs{font-weight:900; font-size:18px; color:var(--muted);}
+  .hero-badge{display:inline-block; background:var(--gold); color:#3a2c00; font-weight:900;
+              padding:6px 14px; border-radius:999px; font-size:13px; letter-spacing:.5px; text-transform:uppercase;}
+  .matchup{display:flex; align-items:center; justify-content:center; gap:14px; margin:18px 0;}
+  .matchup .t{font-weight:900; font-size:18px; text-align:center;}
+  .warn{background:#FDECEC; border:1px solid #f0b3b3; color:#8a1c1c; border-radius:10px; padding:10px 12px;
+         font-size:13px; font-weight:600; margin-bottom:12px;}
+  .note{font-size:12px; color:var(--muted); margin-top:6px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="overlay-root"></div>
+
+<script>
+/* ===========================================================================
+   DATA
+   =========================================================================== */
+const TEAMS = {
+  MIA:{name:"Miami Dolphins", short:"MIAMI", abbr:"MIA", cls:"mia"},
+  TB :{name:"Tampa Bay Buccaneers", short:"TAMPA BAY", abbr:"TB", cls:"tb"}
+};
+const FINAL = { MIA:23, TB:16, winner:"MIA" };
+
+/* Real current rosters (2026). h1 = first-half FP, h2 = second-half FP. game total = h1+h2.
+   Scorers' splits are built to match the scripted timeline (Section 4).
+   Draft pool is exactly: QB 2 (1/team), RB 2 (1/team), REC 6 (3/team),
+   DEF 6 (3/team), PK 2 (1/team) = 18 players, 9 per team.
+   Stars (Achane, Godwin, Mayfield, Winfield) carry higher season averages
+   than role players so lineup choices feel real. */
+const PLAYERS = {
+  // ---- Miami Dolphins ----
+  willis  :{name:"Malik Willis",     team:"MIA", pos:"QB",  avg:15, h1:8,  h2:3 }, // threw Q2 TD
+  achane  :{name:"De'Von Achane",    team:"MIA", pos:"RB",  avg:20, h1:2,  h2:20}, // ⭐ Switcheroo trap (flat at half, breaks Q3 rush TD)
+  atwell  :{name:"Tutu Atwell",      team:"MIA", pos:"REC", avg:11, h1:4,  h2:4 },
+  tolbert :{name:"Jalen Tolbert",    team:"MIA", pos:"REC", avg:12, h1:9,  h2:3 }, // Q2 passing-TD scorer
+  dulcich :{name:"Greg Dulcich",     team:"MIA", pos:"REC", avg:9,  h1:3,  h2:4 },
+  robinson:{name:"Chop Robinson",    team:"MIA", pos:"DEF", avg:9,  h1:4,  h2:4 },
+  brooks  :{name:"Jordyn Brooks",    team:"MIA", pos:"DEF", avg:10, h1:5,  h2:4 },
+  sieler  :{name:"Zach Sieler",      team:"MIA", pos:"DEF", avg:8,  h1:3,  h2:3 },
+  gonzalez:{name:"Zane Gonzalez",    team:"MIA", pos:"PK",  avg:9,  h1:8,  h2:6 }, // PK-ST punt-return TD + Q4 FG
+  // ---- Tampa Bay Buccaneers ----
+  mayfield  :{name:"Baker Mayfield",   team:"TB", pos:"QB",  avg:18, h1:7,  h2:14}, // ⭐ late Q4 Bucs TD
+  irving    :{name:"Bucky Irving",     team:"TB", pos:"RB",  avg:14, h1:9,  h2:3 }, // Q1 first TD
+  egbuka    :{name:"Emeka Egbuka",     team:"TB", pos:"REC", avg:11, h1:5,  h2:4 },
+  godwin    :{name:"Chris Godwin",     team:"TB", pos:"REC", avg:16, h1:7,  h2:6 }, // ⭐ star (no TD this game — captain trap)
+  otton     :{name:"Cade Otton",       team:"TB", pos:"REC", avg:10, h1:4,  h2:4 },
+  kancey    :{name:"Calijah Kancey",   team:"TB", pos:"DEF", avg:9,  h1:4,  h2:4 },
+  david     :{name:"Lavonte David",    team:"TB", pos:"DEF", avg:9,  h1:4,  h2:4 },
+  winfield  :{name:"Antoine Winfield Jr.", team:"TB", pos:"DEF", avg:14, h1:5, h2:11}, // ⭐ Q4 safety
+  mclaughlin:{name:"Chase McLaughlin", team:"TB", pos:"PK",  avg:6,  h1:-2, h2:2 }  // missed 47-yd FG
+};
+const gameFP = p => PLAYERS[p].h1 + PLAYERS[p].h2;
+
+/* Lineup requirements */
+const SLOTS = [
+  {pos:"QB",  need:1},
+  {pos:"RB",  need:1},
+  {pos:"REC", need:2},
+  {pos:"DEF", need:2},
+  {pos:"PK",  need:1}
+];
+const POS_LABEL = {QB:"Quarterback", RB:"Running Back", REC:"Receiver", DEF:"Defense", PK:"Kicker / Special Teams"};
+
+/* 12 bot opponents — fixed final scores, tuned so a reasonable human lands
+   middle-to-upper third (see note in computeAndShowResults). Scaled up from the
+   2-WSN version because 6 WSN windows raise the human ceiling (~+40). */
+const BOTS = [
+  {name:"Wing Demolition",        pts:178},
+  {name:"The Spread Eagles",      pts:166},
+  {name:"Couch Quarterbacks",     pts:156},
+  {name:"Third & Long Island",    pts:147},
+  {name:"Pep's Pretzels",         pts:138},
+  {name:"Sofa Kingdom",           pts:130},
+  {name:"Hail Mary Mary",         pts:121},
+  {name:"Nacho Average Team",     pts:112},
+  {name:"Gridiron Grumblers",     pts:102},
+  {name:"The Booth Reviewers",    pts:92 },
+  {name:"Pylon Pirates",          pts:81 },
+  {name:"Fourth Down Disasters",  pts:69 }
+];
+
+/* ===========================================================================
+   STATE
+   =========================================================================== */
+let S;
+function resetState(){
+  S = {
+    teamName:"",
+    winnerPick:null,          // 'MIA' | 'TB' (original pick)
+    predMIA:null, predTB:null,
+    selected:[],              // player keys chosen for lineup
+    slots:[],                 // [{pos, firstHalfId, currentId}]
+    captainId:null,           // player key or null ("No Captain")
+    youturn:{used:false, window:null, bonus:0},
+    // "Who Scores First?" window — opens BEFORE kickoff, resolved by the first score
+    // of the game (TB · Bucky Irving, RB · Q1 07:22). Scored identically to WSN.
+    wsf:{correctTeam:"TB", correctPos:"RB", scorerId:"irving",
+         pickTeam:null, pickPos:null, pickNMG:false, answered:false, points:0},
+    // One WSN window after each scoring play; each predicts the NEXT score.
+    wsn:[
+      {correctTeam:"MIA", correctPos:"REC",   scorerId:"tolbert"},  // #1 → Q2 MIA passing TD
+      {correctTeam:"MIA", correctPos:"PK-ST", scorerId:"gonzalez"}, // #2 → punt-return TD
+      {correctTeam:"MIA", correctPos:"RB",    scorerId:"achane"},   // #3 → Q3 Achane TD
+      {correctTeam:"TB",  correctPos:"DEF",   scorerId:"winfield"}, // #4 → Q4 safety
+      {correctTeam:"TB",  correctPos:"QB",    scorerId:"mayfield"}, // #5 → Q4 Mayfield TD
+      {correctTeam:"MIA", correctPos:"PK-ST", scorerId:"gonzalez"}  // #6 → Q4 FG
+    ].map(c=>({...c, pickTeam:null, pickPos:null, pickNMG:false, points:0, answered:false})),
+    stepIdx:0
+  };
+}
+
+/* ===========================================================================
+   RENDER HELPERS
+   =========================================================================== */
+const app = document.getElementById('app');
+const overlayRoot = document.getElementById('overlay-root');
+function render(html){ app.innerHTML = html; app.scrollTop = 0; const c=app.querySelector('.content'); if(c)c.scrollTop=0; }
+function $(sel){ return app.querySelector(sel); }
+function $all(sel){ return Array.from(app.querySelectorAll(sel)); }
+const otherTeam = t => t==="MIA" ? "TB" : "MIA";
+
+/* ===========================================================================
+   SCREEN 1 — WELCOME
+   =========================================================================== */
+function showWelcome(){
+  resetState();
+  closeOverlay();
+  render(`
+   <div class="screen">
+    <div class="content center" style="display:flex;flex-direction:column;justify-content:center;">
+      <div style="margin-top:auto"></div>
+      <div class="hero-badge">Bar Game · Live</div>
+      <h1 style="margin-top:18px;font-size:38px;">BEAT THE<br>CROWD</h1>
+      <p style="font-size:18px;font-weight:600;color:var(--navy);">Out-predict everyone in the bar.<br>One game. One winner. No app to download.</p>
+      <div class="matchup">
+        <div class="t"><span class="pill mia">MIA</span><br>Dolphins</div>
+        <div class="vs">vs</div>
+        <div class="t"><span class="pill tb">TB</span><br>Buccaneers</div>
+      </div>
+      <p class="muted">📶 Works even with WiFi off — everything runs on your phone.</p>
+      <div style="margin-bottom:auto"></div>
+    </div>
+    <div class="footer">
+      <button class="btn aqua" onclick="showHowItWorks()">Play the demo →</button>
+    </div>
+   </div>`);
+}
+
+/* ===========================================================================
+   SCREEN 2 — HOW IT WORKS
+   =========================================================================== */
+function showHowItWorks(){
+  render(`
+   <div class="screen">
+    <div class="content">
+      <h2>How Beat the Crowd Works</h2>
+      <p>Goal: score more points than everyone playing <b>here</b>. Earn three types of points through the game. Arrive late or leave early — you're still in.</p>
+      <div class="card">
+        <h3>🎯 Prediction Points</h3>
+        <p style="margin:0">Pick the winner and the final score. <b>You-Turn:</b> switch your winner pick once at a quarter break.</p>
+      </div>
+      <div class="card">
+        <h3>🏈 Fantasy Points</h3>
+        <p style="margin:0">Draft 7 players from either team. They earn for you through scoring, yardage and defense. <b>Captain:</b> one player can earn double. <b>Switcheroo:</b> swap any player(s) at halftime.</p>
+      </div>
+      <div class="card">
+        <h3>⚡ Who Scores First / Next?</h3>
+        <p style="margin:0">Before kickoff, call who scores first. After every score, predict the next team and position — or call <b>“No more scoring.”</b> Nail the player in your lineup for bonus points.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn aqua" onclick="showTeamName()">Got it — let's play →</button>
+    </div>
+   </div>`);
+}
+
+/* ===========================================================================
+   SCREEN 3 — TEAM NAME (no email, no account)
+   =========================================================================== */
+function showTeamName(){
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="step-dots">${dots(0)}</div>
+      <h2>Name your team</h2>
+      <p class="muted">This is how you'll show up on the leaderboard. No email, no sign-up — just a name.</p>
+      <input id="tn" type="text" maxlength="22" placeholder="e.g. Table 7 Titans" value="${S.teamName}" autocomplete="off" />
+      <p class="note">Tip: have fun with it. The bar's about to see this.</p>
+    </div>
+    <div class="footer">
+      <button class="btn" id="tnBtn" onclick="saveTeamName()">Continue →</button>
+    </div>
+   </div>`);
+  const inp = $('#tn'), btn = $('#tnBtn');
+  const sync = ()=>{ btn.disabled = inp.value.trim().length===0; };
+  inp.addEventListener('input', sync); sync();
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter' && inp.value.trim()) saveTeamName(); });
+}
+function saveTeamName(){
+  const v = $('#tn').value.trim();
+  if(!v) return;
+  S.teamName = v;
+  showPredictions();
+}
+
+/* ===========================================================================
+   SCREEN 4 — PREDICTIONS (winner + score)
+   =========================================================================== */
+function showPredictions(){
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="step-dots">${dots(1)}</div>
+      <h2>Make your predictions</h2>
+      <label>Who wins?</label>
+      <div class="choices" style="margin-bottom:18px;">
+        <button class="choice ${S.winnerPick==='MIA'?'sel':''}" data-w="MIA" onclick="pickWinner('MIA')">
+          <span><span class="teamtag mia">MIA</span> &nbsp;Miami Dolphins</span>${S.winnerPick==='MIA'?'✓':''}</button>
+        <button class="choice ${S.winnerPick==='TB'?'sel tbsel':''}" data-w="TB" onclick="pickWinner('TB')">
+          <span><span class="teamtag tb">TB</span> &nbsp;Tampa Bay Buccaneers</span>${S.winnerPick==='TB'?'✓':''}</button>
+      </div>
+      <label>Predict the final score</label>
+      <div class="grid2">
+        <div>
+          <div class="muted" style="margin-bottom:4px;font-weight:700;">Dolphins</div>
+          <input id="pMIA" type="number" inputmode="numeric" min="0" max="99" placeholder="0" value="${S.predMIA??''}" />
+        </div>
+        <div>
+          <div class="muted" style="margin-bottom:4px;font-weight:700;">Buccaneers</div>
+          <input id="pTB" type="number" inputmode="numeric" min="0" max="99" placeholder="0" value="${S.predTB??''}" />
+        </div>
+      </div>
+      <p class="note">Closer = more points. Nail it exactly for a bonus.</p>
+    </div>
+    <div class="footer">
+      <button class="btn" id="prBtn" onclick="savePredictions()">Build my lineup →</button>
+    </div>
+   </div>`);
+  const sync = ()=>{
+    const m = $('#pMIA').value, t = $('#pTB').value;
+    $('#prBtn').disabled = !(S.winnerPick && m!=='' && t!=='');
+  };
+  $('#pMIA').addEventListener('input', sync);
+  $('#pTB').addEventListener('input', sync);
+  sync();
+}
+function pickWinner(t){ S.winnerPick = t; showPredictionsKeepInputs(); }
+function showPredictionsKeepInputs(){
+  // preserve typed score before re-render
+  const m = $('#pMIA'); const t = $('#pTB');
+  if(m) S.predMIA = m.value===''?null:parseInt(m.value,10);
+  if(t) S.predTB = t.value===''?null:parseInt(t.value,10);
+  showPredictions();
+}
+function savePredictions(){
+  S.predMIA = parseInt($('#pMIA').value,10);
+  S.predTB  = parseInt($('#pTB').value,10);
+  if(isNaN(S.predMIA)||isNaN(S.predTB)||!S.winnerPick) return;
+  showLineup();
+}
+
+/* ===========================================================================
+   SCREEN 5 — BUILD LINEUP (7 players)
+   =========================================================================== */
+function showLineup(){
+  let body = "";
+  SLOTS.forEach(slot=>{
+    const have = S.selected.filter(k=>PLAYERS[k].pos===slot.pos).length;
+    body += `<div class="poshdr">${POS_LABEL[slot.pos]} — ${have}/${slot.need}</div>`;
+    Object.keys(PLAYERS).filter(k=>PLAYERS[k].pos===slot.pos).forEach(k=>{
+      const p = PLAYERS[k];
+      const sel = S.selected.includes(k);
+      const full = !sel && have>=slot.need;
+      body += `<button class="pcard ${sel?'sel':''} ${full?'dim':''}" onclick="toggleP('${k}')">
+        <span class="teamtag ${p.team==='MIA'?'mia':'tb'}">${p.team}</span>
+        <span><span class="pname">${p.name}</span><br><span class="pmeta">${slot.pos}</span></span>
+        <span class="pavg">${p.avg}<br><span class="pmeta">avg FP</span></span>
+      </button>`;
+    });
+  });
+  const total = S.selected.length;
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="step-dots">${dots(2)}</div>
+      <h2>Build your lineup</h2>
+      <div class="countbar">${total}/7 picked &nbsp;·&nbsp; mix both teams freely</div>
+      ${body}
+    </div>
+    <div class="footer">
+      <button class="btn" id="luBtn" onclick="saveLineup()" ${lineupComplete()?'':'disabled'}>
+        ${lineupComplete()?'Pick your Captain →':`Pick ${neededRemaining()} more`}</button>
+    </div>
+   </div>`);
+}
+function neededRemaining(){
+  let r=0; SLOTS.forEach(s=>{ r += Math.max(0, s.need - S.selected.filter(k=>PLAYERS[k].pos===s.pos).length); });
+  return r;
+}
+function lineupComplete(){
+  return SLOTS.every(s=> S.selected.filter(k=>PLAYERS[k].pos===s.pos).length===s.need);
+}
+function toggleP(k){
+  const p = PLAYERS[k];
+  const idx = S.selected.indexOf(k);
+  if(idx>=0){ S.selected.splice(idx,1); }
+  else{
+    const slot = SLOTS.find(s=>s.pos===p.pos);
+    const have = S.selected.filter(x=>PLAYERS[x].pos===p.pos).length;
+    if(have>=slot.need) return; // position full
+    S.selected.push(k);
+  }
+  // Preserve scroll position so the list doesn't jump to the top on each pick.
+  const c = $('.content'); const sc = c ? c.scrollTop : 0;
+  showLineup();
+  const c2 = $('.content'); if(c2) c2.scrollTop = sc;
+}
+function saveLineup(){
+  if(!lineupComplete()) return;
+  // Build slot records in canonical order
+  S.slots = [];
+  SLOTS.forEach(slot=>{
+    S.selected.filter(k=>PLAYERS[k].pos===slot.pos).forEach(k=>{
+      S.slots.push({pos:slot.pos, firstHalfId:k, currentId:k});
+    });
+  });
+  showCaptain();
+}
+
+/* ===========================================================================
+   SCREEN 6 — CAPTAIN
+   =========================================================================== */
+function showCaptain(){
+  let body = `<button class="choice ${S.captainId===null?'sel':''}" onclick="pickCaptain(null)">
+        <span>🚫 No Captain</span>${S.captainId===null?'✓':''}</button>`;
+  S.slots.forEach(sl=>{
+    const k = sl.currentId, p = PLAYERS[k];
+    const sel = S.captainId===k;
+    body += `<button class="choice ${sel?'sel':''}" onclick="pickCaptain('${k}')">
+      <span><span class="teamtag ${p.team==='MIA'?'mia':'tb'}">${p.team}</span> &nbsp;<b>${p.name}</b> · ${p.pos} · avg ${p.avg}</span>${sel?'⭐':''}</button>`;
+  });
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="step-dots">${dots(3)}</div>
+      <h2>Pick your Captain</h2>
+      <p class="muted">Beat their season average → Captain's points <b>DOUBLE</b>. Fall short → they're <b>HALVED</b>. No Captain is a valid play.</p>
+      <div class="choices">${body}</div>
+    </div>
+    <div class="footer">
+      <button class="btn" id="capBtn" onclick="showConfirm()">Review →</button>
+    </div>
+   </div>`);
+}
+function pickCaptain(k){ S.captainId = k; showCaptain(); }
+
+/* ===========================================================================
+   SCREEN 7 — CONFIRM
+   =========================================================================== */
+function showConfirm(){
+  const lineupHtml = S.slots.map(sl=>{
+    const p = PLAYERS[sl.currentId];
+    const cap = S.captainId===sl.currentId ? ' ⭐' : '';
+    return `<div class="recap-line"><span><span class="teamtag ${p.team==='MIA'?'mia':'tb'}">${p.team}</span> ${p.name} · ${p.pos}${cap}</span><span class="rv">${p.avg}</span></div>`;
+  }).join('');
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="step-dots">${dots(4)}</div>
+      <h2>Lock it in</h2>
+      <div class="card">
+        <div class="recap-line"><span>🏆 Winner pick</span><span class="rv">${TEAMS[S.winnerPick].name}</span></div>
+        <div class="recap-line"><span>🎯 Score prediction</span><span class="rv">MIA ${S.predMIA} · TB ${S.predTB}</span></div>
+        <div class="recap-line"><span>⭐ Captain</span><span class="rv">${S.captainId?PLAYERS[S.captainId].name:'None'}</span></div>
+      </div>
+      <h3>Your 7</h3>
+      <div class="card" style="padding:6px 16px;">${lineupHtml}</div>
+      <p class="note">First call comes before kickoff — Who Scores First? Then watch for You-Turn, Switcheroo and Who Scores Next.</p>
+    </div>
+    <div class="footer">
+      <button class="btn aqua" onclick="startMatch()">🏈 Kickoff →</button>
+    </div>
+   </div>`);
+}
+
+/* ===========================================================================
+   SCREEN 8 — LIVE MATCH (scripted timeline)
+   =========================================================================== */
+/* Pacing: tuned so the match plays out close to ~5 minutes (incl. mechanic
+   pauses). A running game clock ticks between events so it still feels live.
+   To make the demo snappier, lower these two numbers. */
+const PLAY_DELAY = 8500;
+const SCORE_DELAY = 11000;
+/* "No more scoring" (NMG) potential reward shown on pick windows. In this scripted
+   game there is always a next score, so NMG is intentionally always wrong here
+   (scored 0, no penalty) — matching the demo's "fake game, real scoring" design. */
+const NMG_BONUS = 8;
+
+const TIMELINE = [
+  {t:'wsf'},  // Who Scores First? — opens before kickoff
+  {t:'play',  clock:"Q1 15:00", desc:"Kickoff — Buccaneers receive to open the game."},
+  {t:'play',  clock:"Q1 11:48", desc:"Tampa Bay grinds it out on the ground, into Miami territory."},
+  {t:'score', clock:"Q1 07:22", team:"TB", mia:0, tb:7, tag:"TD · Tampa Bay", resolvesWSF:true,
+              desc:"TOUCHDOWN Buccaneers! Bucky Irving 4-yd rush. PAT good (+1). Bucs strike first."},
+  {t:'wsn', i:0},
+  {t:'youturn', window:"q1", bonus:15},
+  {t:'play',  clock:"Q2 14:30", desc:"Second quarter. Miami's offense finally finds a rhythm."},
+  {t:'score', clock:"Q2 09:55", team:"MIA", mia:7, tb:7, tag:"TD · Miami", resolvesWSN:0,
+              desc:"TOUCHDOWN Dolphins! Malik Willis 18-yd strike to Jalen Tolbert. PAT good (+1). All square."},
+  {t:'wsn', i:1},
+  {t:'play',  clock:"Q2 04:40", desc:"Bucs drive stalls — Chase McLaughlin trots out for a 47-yard try..."},
+  {t:'score', clock:"Q2 04:33", team:null, mia:7, tb:7, tag:"FG NO GOOD · Tampa Bay",
+              desc:"NO GOOD! Chase McLaughlin hooks the 47-yarder wide. No score — your pick still stands. Still 7–7."},
+  {t:'score', clock:"Q2 01:08", team:"MIA", mia:14, tb:7, tag:"TD · Miami Special Teams", resolvesWSN:1,
+              desc:"TOUCHDOWN Dolphins! Punt returned all the way by special teams (PK-ST). PAT good (+1). Miami in front."},
+  {t:'wsn', i:2},
+  {t:'halftime'},
+  {t:'play',  clock:"Q3 14:12", desc:"Third quarter underway. Dolphins receive the kickoff."},
+  {t:'score', clock:"Q3 10:46", team:"MIA", mia:20, tb:7, tag:"TD · Miami", resolvesWSN:2,
+              desc:"TOUCHDOWN Dolphins! De'Von Achane breaks loose for a 62-yard run! PAT MISSED — this one's worth 6."},
+  {t:'wsn', i:3},
+  {t:'youturn', window:"q3", bonus:5},
+  {t:'play',  clock:"Q4 13:40", desc:"Fourth quarter. Bucs back themselves up near their own goal line."},
+  {t:'score', clock:"Q4 12:51", team:"TB", mia:20, tb:9, tag:"SAFETY · Tampa Bay Defense", resolvesWSN:3,
+              desc:"SAFETY! Bucs defense (Antoine Winfield Jr.) drags the runner down in the end zone. +2 Tampa Bay — safeties credit the DEFENSE."},
+  {t:'wsn', i:4},
+  {t:'play',  clock:"Q4 06:20", desc:"Mayfield leads a gutsy two-minute drive for Tampa Bay..."},
+  {t:'score', clock:"Q4 04:11", team:"TB", mia:20, tb:16, tag:"TD · Tampa Bay", resolvesWSN:4,
+              desc:"TOUCHDOWN Buccaneers! Baker Mayfield 1-yd sneak. PAT good (+1). One-score game — here we go!"},
+  {t:'wsn', i:5},
+  {t:'score', clock:"Q4 00:31", team:"MIA", mia:23, tb:16, tag:"FG GOOD · Miami", resolvesWSN:5,
+              desc:"FIELD GOAL good — Zane Gonzalez drills it from 44. Dolphins ice it. FINAL: Miami 23, Tampa Bay 16."},
+  {t:'final'}
+];
+
+let feedHtml = [];
+let curScore = {mia:0, tb:0};
+let curClock = "Q1 15:00";
+
+function startMatch(){
+  feedHtml = [];
+  curScore = {mia:0, tb:0};
+  curClock = "Q1 15:00";
+  S.stepIdx = 0;
+  renderMatch();
+  setTimeout(runStep, 600);
+}
+function renderMatch(){
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="scoreboard">
+        <div class="sb-row">
+          <div class="sb-team"><span class="nm dot-mia">● MIAMI</span><span class="sc" id="scMIA">${curScore.mia}</span></div>
+          <div class="sb-mid"><div class="sb-clock" id="clk">${curClock}</div><div style="opacity:.6;font-size:11px;margin-top:4px">LIVE</div></div>
+          <div class="sb-team"><span class="nm dot-tb">● TAMPA BAY</span><span class="sc" id="scTB">${curScore.tb}</span></div>
+        </div>
+      </div>
+      <div class="feed" id="feed">${feedHtml.join('')}</div>
+    </div>
+    <div class="footer" style="background:transparent;">
+      <div class="muted center" id="matchHint">Sit back — the game's running. Mechanics will pop up when it's your move.</div>
+    </div>
+   </div>`);
+}
+function pushPlay(html){
+  feedHtml.unshift(html);
+  if(feedHtml.length>9) feedHtml = feedHtml.slice(0,9);
+  const f = $('#feed'); if(f) f.innerHTML = feedHtml.join('');
+}
+function updateBoard(step){
+  if(step.mia!==undefined && step.mia!==null){ curScore.mia=step.mia; curScore.tb=step.tb; }
+  curClock = step.clock || curClock;
+  const sm=$('#scMIA'), st=$('#scTB'), ck=$('#clk');
+  if(sm){ sm.textContent=curScore.mia; sm.style.animation='pop .4s'; setTimeout(()=>{if(sm)sm.style.animation='';},420); }
+  if(st){ st.textContent=curScore.tb; st.style.animation='pop .4s'; setTimeout(()=>{if(st)st.style.animation='';},420); }
+  if(ck) ck.textContent=curClock;
+}
+
+/* Running game clock — ticks the displayed quarter clock down between events
+   so the match feels live during the gaps. */
+let clockTimer=null;
+function parseClock(s){
+  const m=(s||"").match(/(Q\d|OT)\s+(\d+):(\d+)/);
+  return m ? {q:m[1], sec:parseInt(m[2],10)*60+parseInt(m[3],10)} : null;
+}
+function fmtClock(q,sec){ sec=Math.max(0,sec); return `${q} ${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`; }
+function startClockTick(fromClockStr){
+  stopClockTick();
+  const p=parseClock(fromClockStr); if(!p) return;
+  let q=p.q, sec=p.sec;
+  clockTimer=setInterval(()=>{
+    sec-=1; if(sec<0) sec=0;
+    const ck=document.getElementById('clk');
+    if(ck) ck.textContent=fmtClock(q,sec); else stopClockTick();
+  }, 380);
+}
+function stopClockTick(){ if(clockTimer){ clearInterval(clockTimer); clockTimer=null; } }
+
+function runStep(){
+  if(S.stepIdx>=TIMELINE.length) return;
+  const step = TIMELINE[S.stepIdx];
+
+  if(step.t==='play'){
+    updateBoard(step);
+    pushPlay(`<div class="play"><span class="ptag">${step.clock}</span><br>${step.desc}</div>`);
+    startClockTick(step.clock);
+    S.stepIdx++; setTimeout(runStep, PLAY_DELAY);
+
+  } else if(step.t==='score'){
+    updateBoard(step);
+    if(step.resolvesWSF) resolveAndToastWSF();
+    if(step.resolvesWSN!==undefined) resolveAndToastWSN(step.resolvesWSN);
+    const cls = step.team==='MIA'?'mia':(step.team==='TB'?'tb':'');
+    pushPlay(`<div class="play score ${cls}"><span class="ptag">${step.tag||step.clock}</span><br>${step.desc}</div>`);
+    startClockTick(step.clock);
+    S.stepIdx++; setTimeout(runStep, SCORE_DELAY);
+
+  } else if(step.t==='wsf'){
+    stopClockTick();          // freeze the game clock while the pick window is up
+    openWSF();
+
+  } else if(step.t==='wsn'){
+    stopClockTick();          // freeze the game clock while the pick window is up
+    openWSN(step.i);
+
+  } else if(step.t==='youturn'){
+    stopClockTick();
+    if(S.youturn.used){ S.stepIdx++; runStep(); }
+    else openYouTurn(step.window, step.bonus, ()=>{ S.stepIdx++; runStep(); });
+
+  } else if(step.t==='halftime'){
+    stopClockTick();
+    // You-Turn (halftime window) first if still available, then Switcheroo.
+    const afterYT = ()=> openSwitcheroo(()=>{ S.stepIdx++; runStep(); });
+    if(!S.youturn.used){ openYouTurn('half', 10, afterYT); }
+    else afterYT();
+
+  } else if(step.t==='final'){
+    stopClockTick();
+    setTimeout(computeAndShowResults, 700);
+  }
+}
+
+/* ----- Pick windows: Who Scores First? (pre-kickoff) + Who Scores Next? (after each score) -----
+   Both share one UI: team + position group + a "No more scoring" option, on a 20s timer.
+   The game clock is already frozen (stopClockTick() ran before this opened) so the window
+   is a true pause — nothing ticks until the player submits/passes and play resumes. */
+let wsnTimer=null;
+function openPickWindow(w, opts){
+  let pickTeam=w.pickTeam||null, pickPos=w.pickPos||null, pickNMG=!!w.pickNMG, secs=20;
+  const POS = ["QB","RB","REC","DEF","PK-ST"];
+  function draw(){
+    overlay(`
+      <h2>⚡ ${opts.title} <span class="muted" style="font-size:13px">${opts.badge}</span> <span class="countdown" id="wsnCd">0:${String(secs).padStart(2,'0')}</span></h2>
+      <p class="muted">${opts.sub}</p>
+      <label>Team</label>
+      <div class="grid2" style="margin-bottom:14px">
+        <button class="choice ${pickTeam==='MIA'?'sel':''}" onclick="window._pwTeam('MIA')" style="justify-content:center"><span><span class="teamtag mia">MIA</span> Dolphins</span></button>
+        <button class="choice ${pickTeam==='TB'?'sel tbsel':''}" onclick="window._pwTeam('TB')" style="justify-content:center"><span><span class="teamtag tb">TB</span> Bucs</span></button>
+      </div>
+      <label>Position group</label>
+      <div class="choices" style="grid-template-columns:1fr 1fr 1fr; display:grid; gap:8px; margin-bottom:14px">
+        ${POS.map(p=>`<button class="choice ${pickPos===p?'sel':''}" onclick="window._pwPos('${p}')" style="justify-content:center;padding:12px 4px;font-size:14px">${p}</button>`).join('')}
+      </div>
+      <div class="note" style="margin-bottom:6px">${opts.nmgLabel}</div>
+      <button class="choice ${pickNMG?'sel':''}" onclick="window._pwNMG()" style="justify-content:space-between;margin-bottom:16px">
+        <span>🚫 No more scoring</span><span class="pmeta">+${NMG_BONUS} if right</span></button>
+      <button class="btn aqua" onclick="window._pwSubmit()" ${(pickNMG||(pickTeam&&pickPos))?'':'disabled'}>Lock it in</button>
+      <button class="btn ghost sm" style="margin-top:8px" onclick="window._pwPass()">Pass</button>
+    `);
+  }
+  // Team/position and "No more scoring" are mutually exclusive.
+  window._pwTeam = t=>{ pickTeam=t; pickNMG=false; draw(); };
+  window._pwPos  = p=>{ pickPos=p; pickNMG=false; draw(); };
+  window._pwNMG  = ()=>{ pickNMG=!pickNMG; if(pickNMG){ pickTeam=null; pickPos=null; } draw(); };
+  window._pwPass = ()=> finish(false);
+  window._pwSubmit = ()=> finish(true);
+  function finish(submit){
+    clearInterval(wsnTimer); wsnTimer=null;
+    if(submit && pickNMG){ w.pickNMG=true; w.pickTeam=null; w.pickPos=null; w.answered=true; }
+    else if(submit && pickTeam && pickPos){ w.pickTeam=pickTeam; w.pickPos=pickPos; w.pickNMG=false; w.answered=true; }
+    closeOverlay();
+    const lockTxt = !w.answered ? ' — passed'
+                    : w.pickNMG ? ' — you called no more scoring'
+                    : ` — you picked ${w.pickTeam}/${w.pickPos}`;
+    pushPlay(`<div class="toast">⚡ ${opts.lockTag} locked${lockTxt}. Watch the next score…</div>`);
+    S.stepIdx++; setTimeout(runStep, 700);
+  }
+  draw();
+  wsnTimer = setInterval(()=>{
+    secs--;
+    const cd = document.getElementById('wsnCd');
+    if(cd) cd.textContent = `0:${String(Math.max(secs,0)).padStart(2,'0')}`;
+    if(secs<=0) finish(!!(pickNMG||(pickTeam&&pickPos))); // auto-submit if filled, else auto-pass
+  },1000);
+}
+function openWSF(){
+  openPickWindow(S.wsf, {
+    title:"Who Scores First?",
+    badge:"before kickoff",
+    sub:"Game's about to start — call who puts the first points on the board.",
+    nmgLabel:"Or call a scoreless game:",
+    lockTag:"Who Scores First"
+  });
+}
+function openWSN(idx){
+  openPickWindow(S.wsn[idx], {
+    title:"Who Scores Next?",
+    badge:`#${idx+1} of ${S.wsn.length}`,
+    sub:"Predict the next team & position to score. Pass = 0 points, no penalty.",
+    nmgLabel:"Or call no more scoring the rest of the way:",
+    lockTag:`WSN #${idx+1}`
+  });
+}
+function resolveAndToastWSF(){
+  const w = S.wsf;
+  let pts=0, detail="";
+  if(w.answered && !w.pickNMG && w.pickTeam===w.correctTeam){
+    pts+=2;
+    if(w.pickPos===w.correctPos){
+      pts+=3;
+      if(lineupHas(w.scorerId)) pts+=5;
+    }
+  }
+  w.points=pts;
+  const scorer = PLAYERS[w.scorerId];
+  const correctTxt = `${w.correctTeam}/${w.correctPos} (${scorer.name})`;
+  if(!w.answered) detail = `passed. First score was ${correctTxt}.`;
+  else if(w.pickNMG) detail = `you called no more scoring — but ${scorer.name} struck first (${correctTxt}). +0`;
+  else if(pts>=10) detail = `✓ ${correctTxt} — and ${scorer.name} is in your lineup! +10`;
+  else if(pts>=5) detail = `✓ team & position right (${correctTxt})! +5`;
+  else if(pts>=2) detail = `team right, position off (${correctTxt}). +2`;
+  else detail = `not this time — first score was ${correctTxt}.`;
+  const cls = pts>0?'good':(w.answered?'bad':'');
+  pushPlay(`<div class="toast ${cls}">⚡ Who Scores First result: ${detail}</div>`);
+}
+function resolveAndToastWSN(idx){
+  const w = S.wsn[idx];
+  let pts=0, detail="";
+  if(w.answered && !w.pickNMG && w.pickTeam===w.correctTeam){
+    pts+=2;
+    if(w.pickPos===w.correctPos){
+      pts+=3;
+      if(lineupHas(w.scorerId)) pts+=5;
+    }
+  }
+  w.points=pts;
+  const scorer = PLAYERS[w.scorerId];
+  const correctTxt = `${w.correctTeam}/${w.correctPos} (${scorer.name})`;
+  if(!w.answered) detail = `passed. Correct was ${correctTxt}.`;
+  else if(w.pickNMG) detail = `you called no more scoring — but ${scorer.name} found the end zone (${correctTxt}). +0`;
+  else if(pts>=10) detail = `✓ ${correctTxt} — and ${scorer.name} is in your lineup! +10`;
+  else if(pts>=5) detail = `✓ team & position right (${correctTxt})! +5`;
+  else if(pts>=2) detail = `team right, position off (${correctTxt}). +2`;
+  else detail = `not this time — correct was ${correctTxt}.`;
+  const cls = pts>0?'good':(w.answered?'bad':'');
+  pushPlay(`<div class="toast ${cls}">⚡ WSN #${idx+1} result: ${detail}</div>`);
+}
+function lineupHas(k){ return S.slots.some(sl=>sl.currentId===k); }
+
+/* ----- You-Turn mechanic ----- */
+function openYouTurn(window_, bonus, done){
+  const cur = S.youturn.used ? otherTeam(S.winnerPick) : S.winnerPick; // current effective pick
+  const flipTo = otherTeam(cur);
+  const winTxt = {q1:"end of Q1", half:"halftime", q3:"end of Q3"}[window_];
+  overlay(`
+    <h2>🔄 You-Turn <span class="muted" style="font-size:13px">· ${winTxt}</span></h2>
+    <p>Your winner pick is <b>${TEAMS[cur].name}</b>. The board says ${curScore.mia}–${curScore.tb}.</p>
+    <p class="muted">Switch once for the whole game. A correct switch now is worth <b>+${bonus}</b>. A wrong switch costs <b>−5</b>. (Your score prediction is untouched.)</p>
+    <button class="btn ${flipTo==='MIA'?'aqua':'red'}" onclick="window._ytFlip()">Switch to ${TEAMS[flipTo].name} (+${bonus} if right)</button>
+    <button class="btn ghost sm" style="margin-top:10px" onclick="window._ytKeep()">Keep ${TEAMS[cur].name}</button>
+    <p class="note">You can also hold now and use your You-Turn at a later break.</p>
+  `);
+  window._ytFlip = ()=>{
+    S.youturn.used=true; S.youturn.window=window_; S.youturn.bonus=bonus;
+    closeOverlay();
+    pushPlay(`<div class="toast">🔄 You-Turn used — winner pick switched to ${TEAMS[flipTo].name}.</div>`);
+    done();
+  };
+  window._ytKeep = ()=>{ closeOverlay(); done(); };
+}
+
+/* ----- Switcheroo mechanic (halftime) ----- */
+function openSwitcheroo(done){
+  // Show current lineup with first-half FP; allow swapping any slot to a same-position bench player.
+  function bench(pos){
+    return Object.keys(PLAYERS).filter(k=>PLAYERS[k].pos===pos && !lineupHas(k));
+  }
+  function draw(){
+    const rows = S.slots.map((sl,i)=>{
+      const p = PLAYERS[sl.currentId];
+      const h1 = PLAYERS[sl.currentId].h1;
+      const isCap = S.captainId===sl.currentId;
+      const opts = bench(sl.pos).map(k=>`<option value="${k}">${PLAYERS[k].name} (${PLAYERS[k].team}, avg ${PLAYERS[k].avg})</option>`).join('');
+      return `<div class="recap-line" style="align-items:center">
+        <span><span class="teamtag ${p.team==='MIA'?'mia':'tb'}">${p.team}</span> <b>${p.name}</b> · ${p.pos}${isCap?' ⭐':''}
+          <br><span class="pmeta">1st-half FP: <b style="color:${h1<0?'var(--bad)':'var(--navy)'}">${h1}</b></span></span>
+        <select data-slot="${i}" onchange="window._swSel(${i}, this.value)" style="max-width:48%;padding:8px;border-radius:9px;border:2px solid var(--line);font-size:13px">
+          <option value="">Keep</option>${opts}
+        </select>
+      </div>`;
+    }).join('');
+    const trapRbIn = lineupHas('achane');
+    overlay(`
+      <h2>🔁 Switcheroo <span class="muted" style="font-size:13px">· halftime</span></h2>
+      <p class="muted">Swap any player(s) now. Swapped-out players keep their first-half points; replacements earn from here on. No limit, no penalty for skipping.</p>
+      ${trapRbIn?'<div class="warn">Heads up: some stars look quiet at the half. Trust your draft.</div>':''}
+      <div class="card" style="padding:6px 14px">${rows}</div>
+      <button class="btn aqua" onclick="window._swDone()">Confirm lineup for 2nd half</button>
+    `);
+  }
+  // pending swaps applied immediately on select (with captain warning)
+  window._swSel = (i, val)=>{
+    const sl = S.slots[i];
+    const outId = sl.currentId;
+    if(val===""){ // revert to keep => restore original currentId? We only allow forward swaps; "Keep" means no change from current.
+      return;
+    }
+    // captain warning
+    if(S.captainId===outId){
+      const ok = confirm(`${PLAYERS[outId].name} is your Captain. Switching them out forfeits the Captain bonus and your Captain pick. Continue?`);
+      if(!ok){ draw(); return; }
+      S.captainId = null;
+    }
+    sl.currentId = val;
+    draw();
+  };
+  window._swDone = ()=>{ closeOverlay(); done(); };
+  draw();
+}
+
+/* ===========================================================================
+   SCREEN 9 — RESULTS / LEADERBOARD + RECAP
+   =========================================================================== */
+function computeAndShowResults(){
+  // ----- Prediction Points -----
+  const finalPick = S.youturn.used ? otherTeam(S.winnerPick) : S.winnerPick;
+  const winnerPP = (finalPick===FINAL.winner) ? 30 : -5;
+
+  const err = Math.abs(S.predMIA-FINAL.MIA) + Math.abs(S.predTB-FINAL.TB);
+  const exact = (S.predMIA===FINAL.MIA && S.predTB===FINAL.TB);
+  const scorePP = Math.max(0, 20 - 1.5*err) + (exact?5:0);
+
+  // ----- You-Turn component -----
+  let youturnPts = 0, youturnTxt = "Not used";
+  if(S.youturn.used){
+    if(finalPick===FINAL.winner){ youturnPts = S.youturn.bonus; youturnTxt = `Correct switch (+${S.youturn.bonus})`; }
+    else { youturnPts = -5; youturnTxt = "Wrong switch (−5)"; }
+  }
+
+  // ----- Fantasy Points (slot-based, honoring Switcheroo splits) -----
+  let fpBase = 0;
+  S.slots.forEach(sl=>{
+    fpBase += PLAYERS[sl.firstHalfId].h1 + PLAYERS[sl.currentId].h2;
+  });
+  // Captain: must be a player present the whole game (not switched out).
+  let captainDelta = 0, captainTxt = "No Captain";
+  if(S.captainId && lineupHas(S.captainId)){
+    const slot = S.slots.find(sl=>sl.currentId===S.captainId && sl.firstHalfId===S.captainId);
+    if(slot){
+      const cap = PLAYERS[S.captainId];
+      const capFP = cap.h1 + cap.h2;
+      if(capFP > cap.avg){ captainDelta = capFP; captainTxt = `${cap.name} beat avg → 2× (+${capFP})`; }
+      else { captainDelta = -(capFP/2); captainTxt = `${cap.name} under avg → ½× (${captainDelta})`; }
+    }
+  } else if(S.captainId && !lineupHas(S.captainId)){
+    captainTxt = `${PLAYERS[S.captainId].name} switched out — Captain bonus forfeited`;
+  }
+  const fpTotal = fpBase + captainDelta;
+
+  const wsfPts = S.wsf.points;
+  const wsfHit = wsfPts>0;
+  const wsnPts = S.wsn.reduce((a,w)=>a+w.points,0);
+  const wsnHits = S.wsn.filter(w=>w.points>0).length;
+  const total = Math.round(winnerPP + scorePP + youturnPts + fpTotal + wsfPts + wsnPts);
+
+  /* ----- Leaderboard ----- */
+  // Bots use fixed, hand-tuned finals (see BOTS). A reasonable set of choices
+  // (back the favorite, sensible lineup, don't fall for the traps) lands the
+  // player in the middle-to-upper third without being auto-first.
+  const rows = BOTS.map(b=>({name:b.name, pts:b.pts, me:false}))
+    .concat([{name:S.teamName, pts:total, me:true}])
+    .sort((a,b)=> b.pts - a.pts);
+  const rank = rows.findIndex(r=>r.me)+1;
+  const totalPlayers = rows.length;
+
+  const lbHtml = rows.map((r,i)=>`
+    <div class="lb-row ${r.me?'me':''} ${i===0?'top1':''}">
+      <span class="lb-rank">${i===0?'🥇':(i===1?'🥈':(i===2?'🥉':'#'+(i+1)))}</span>
+      <span class="lb-name">${r.name}${r.me?'<span class="you">YOU</span>':''}</span>
+      <span class="lb-pts">${r.pts}</span>
+    </div>`).join('');
+
+  const rv = (n)=>`<span class="rv ${n>0?'pos':(n<0?'neg':'')}">${n>0?'+':''}${Number.isInteger(n)?n:n.toFixed(1)}</span>`;
+  const place = rank===1 ? "🏆 1st place — you beat the crowd!" :
+                rank<=Math.ceil(totalPlayers/3) ? `Top third — #${rank} of ${totalPlayers}. Strong game!` :
+                rank<=Math.ceil(totalPlayers*2/3) ? `Middle of the pack — #${rank} of ${totalPlayers}.` :
+                `#${rank} of ${totalPlayers} — there's always next quarter.`;
+
+  render(`
+   <div class="screen">
+    <div class="content">
+      <div class="center" style="margin-bottom:6px">
+        <div class="hero-badge">Final · Miami 23 — Tampa Bay 16</div>
+      </div>
+      <h2 class="center" style="margin-top:10px">${place}</h2>
+
+      <h3 style="margin-top:8px">Leaderboard</h3>
+      ${lbHtml}
+
+      <h3 style="margin-top:18px">Your scorecard — ${S.teamName}</h3>
+      <div class="card">
+        <div class="recap-line"><span>🏆 Winner (${TEAMS[finalPick].name})</span>${rv(winnerPP)}</div>
+        <div class="recap-line"><span>🎯 Score prediction <span class="pmeta">(you said ${S.predMIA}–${S.predTB})</span></span>${rv(Math.round(scorePP*10)/10)}</div>
+        <div class="recap-line"><span>🔄 You-Turn <span class="pmeta">(${youturnTxt})</span></span>${rv(youturnPts)}</div>
+        <div class="recap-line"><span>⚡ Who Scores First <span class="pmeta">(${wsfHit?'hit':(S.wsf.answered?'miss':'passed')})</span></span>${rv(wsfPts)}</div>
+        <div class="recap-line"><span>⚡ Who Scores Next <span class="pmeta">(${wsnHits}/${S.wsn.length} hit · ${S.wsn.map(w=>w.points).join('·')})</span></span>${rv(wsnPts)}</div>
+        <div class="recap-line"><span>🏈 Fantasy — lineup</span>${rv(fpBase)}</div>
+        <div class="recap-line"><span>⭐ Captain <span class="pmeta">(${captainTxt})</span></span>${rv(Math.round(captainDelta*10)/10)}</div>
+        <div class="recap-total"><span>TOTAL</span><span>${total}</span></div>
+      </div>
+      <p class="note center">Same game, every phone — your choices made this score. That's Beat the Crowd.</p>
+    </div>
+    <div class="footer">
+      <button class="btn aqua" onclick="showWelcome()">Play again ↺</button>
+    </div>
+   </div>`);
+}
+
+/* ===========================================================================
+   OVERLAY PLUMBING
+   =========================================================================== */
+function overlay(innerHtml){
+  document.body.classList.add('lock');
+  overlayRoot.innerHTML = `<div class="overlay"><div class="sheet">${innerHtml}</div></div>`;
+}
+function closeOverlay(){
+  document.body.classList.remove('lock');
+  overlayRoot.innerHTML = "";
+}
+
+/* small step indicator */
+function dots(active){
+  let s="";
+  for(let i=0;i<5;i++) s+=`<i class="${i===active?'on':''}"></i>`;
+  return s;
+}
+
+/* ===========================================================================
+   BOOT
+   =========================================================================== */
+showWelcome();
+</script>
+</body>
+</html>
